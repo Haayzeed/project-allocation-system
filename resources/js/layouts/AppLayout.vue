@@ -16,3 +16,5 @@ withDefaults(defineProps<Props>(), {
         <slot />
     </AppLayout>
 </template>
+
+export default {};
