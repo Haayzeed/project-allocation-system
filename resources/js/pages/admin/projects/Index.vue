@@ -3,7 +3,8 @@ import AppLayout from '@/layouts/AppLayout.vue';
 import { ref } from 'vue';
 
 const breadcrumbs = [
-  { title: 'Projects', href: '/projects' },
+  { title: 'Admin', href: '/admin/dashboard' },
+  { title: 'Projects', href: '/admin/projects' },
 ];
 
 // Mock data for demonstration

@@ -3,7 +3,8 @@ import AppLayout from '@/layouts/AppLayout.vue';
 import { ref } from 'vue';
 
 const breadcrumbs = [
-  { title: 'Departments', href: '/departments' },
+  { title: 'Admin', href: '/admin/dashboard' },
+  { title: 'Departments', href: '/admin/departments' },
 ];
 
 // Mock data for demonstration
@@ -21,6 +22,8 @@ const editingDepartment = ref<null | { name: string; code: string; description: 
 function openModal() {
   showModal.value = true;
   activeTab.value = 'form';
+  newDepartment.value = { name: '', code: '', description: '' };
+  editingDepartment.value = null;
 }
 function closeModal() {
   showModal.value = false;

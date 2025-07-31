@@ -4,37 +4,108 @@ import NavMain from '@/components/NavMain.vue';
 import NavUser from '@/components/NavUser.vue';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
 import { type NavItem } from '@/types';
-import { Link } from '@inertiajs/vue3';
-import { BookOpen, Folder, LayoutGrid } from 'lucide-vue-next';
+import { Link, usePage } from '@inertiajs/vue3';
+import { computed } from 'vue';
+import { BookOpen, Folder, LayoutGrid, User, FolderKanban, School, GraduationCap } from 'lucide-vue-next';
 import AppLogo from './AppLogo.vue';
 
-const mainNavItems: NavItem[] = [
-    {
+const page = usePage();
+
+// Determine which menu to show based on current route
+const isStudentRoute = computed(() => page.url.startsWith('/students'));
+const isAdminRoute = computed(() => page.url.startsWith('/admin'));
+const isSupervisorRoute = computed(() => page.url.startsWith('/supervisor'));
+
+const mainNavItems = computed(() => {
+  if (isStudentRoute.value) {
+    return [
+      {
+        title: 'Dashboard',
+        href: '/students',
+        icon: LayoutGrid,
+      },
+    //   {
+    //     title: 'My Project',
+    //     href: '/students/project',
+    //     icon: Folder,
+    //   },
+    //   {
+    //     title: 'My Supervisor',
+    //     href: '/students/supervisor',
+    //     icon: User,
+    //   },
+    ];
+  } else if (isSupervisorRoute.value) {
+    return [
+      {
+        title: 'Dashboard',
+        href: '/supervisor',
+        icon: LayoutGrid,
+      },
+      {
+        title: 'My Students',
+        href: '/supervisor/students',
+        icon: GraduationCap,
+      },
+    ];
+  } else if (isAdminRoute.value) {
+    return [
+      {
+        title: 'Dashboard',
+        href: '/admin/dashboard',
+        icon: LayoutGrid,
+      },
+      {
+        title: 'Students',
+        href: '/admin/students',
+        icon: GraduationCap,
+      },
+      {
+        title: 'Departments',
+        href: '/admin/departments',
+        icon: School,
+      },
+      {
+        title: 'Supervisors',
+        href: '/admin/supervisors',
+        icon: User,
+      },
+      {
+        title: 'Projects',
+        href: '/admin/projects',
+        icon: FolderKanban,
+      },
+    ];
+  } else {
+    return [
+      {
         title: 'Dashboard',
         href: '/dashboard',
         icon: LayoutGrid,
-    },
-    {
+      },
+      {
         title: 'Students',
-        href: '/students',
-        icon: Folder,
-    },
-    {
+        href: '/admin/students',
+        icon: GraduationCap,
+      },
+      {
         title: 'Departments',
-        href: '/departments',
-        icon: Folder,
-    },
-    {
+        href: '/admin/departments',
+        icon: School,
+      },
+      {
         title: 'Supervisors',
-        href: '/supervisors',
-        icon: Folder,
-    },
-    {
+        href: '/admin/supervisors',
+        icon: User,
+      },
+      {
         title: 'Projects',
-        href: '/projects',
-        icon: Folder,
-    },
-];
+        href: '/admin/projects',
+        icon: FolderKanban,
+      },
+    ];
+  }
+});
 
 const footerNavItems: NavItem[] = [
     {
@@ -69,7 +140,7 @@ const footerNavItems: NavItem[] = [
         </SidebarContent>
 
         <SidebarFooter>
-            <NavFooter :items="footerNavItems" />
+            <!-- <NavFooter :items="footerNavItems" /> -->
             <NavUser />
         </SidebarFooter>
     </Sidebar>
