@@ -18,12 +18,13 @@ class StudentController extends Controller
      */
     public function index(): Response
     {
-        $students = Student::with(['user', 'department', 'allocation.supervisor.user'])
-            ->withCount('projects')
-            ->get();
-
-        return Inertia::render('Admin/Students/Index', [
+        $students = User::where('role', 'student')
+            ->with(['student', 'student.department', 'student.allocation.supervisor.user'])
+            ->paginate(10);
+        $departments = Department::all();
+        return Inertia::render('admin/students/Index', [
             'students' => $students,
+            'departments' => $departments,
         ]);
     }
 

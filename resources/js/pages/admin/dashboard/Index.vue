@@ -1,20 +1,34 @@
 <script setup lang="ts">
 import AppLayout from '@/layouts/AppLayout.vue';
-import { ref } from 'vue';
+
+// Define props to receive data from the controller
+interface Props {
+  stats: {
+    total_users: number;
+    total_students: number;
+    total_supervisors: number;
+    total_admins: number;
+    total_projects: number;
+    total_allocations: number;
+    total_departments: number;
+    allocation_success_rate: number;
+    average_match_score: number | null;
+  };
+  projectStats: Record<string, number>;
+  allocationStats: Record<string, number>;
+  recentAllocations: Array<any>;
+  recentProjects: Array<any>;
+  recentUsers: Array<any>;
+  departmentStats: Array<any>;
+  supervisorWorkload: Array<any>;
+  monthlyAllocations: Array<any>;
+}
+
+const props = defineProps<Props>();
 
 const breadcrumbs = [
   { title: 'Admin', href: '/admin/dashboard' },
 ];
-
-// Mock admin statistics
-const stats = ref({
-  totalStudents: 150,
-  totalSupervisors: 25,
-  totalDepartments: 8,
-  totalProjects: 120,
-  pendingAllocations: 15,
-  completedProjects: 85,
-});
 </script>
 
 <template>
@@ -26,7 +40,7 @@ const stats = ref({
       </div>
 
       <!-- Statistics Cards -->
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
           <div class="flex items-center">
             <div class="p-2 bg-blue-100 rounded-lg">
@@ -36,7 +50,7 @@ const stats = ref({
             </div>
             <div class="ml-4">
               <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Total Students</p>
-              <p class="text-2xl font-semibold text-gray-900 dark:text-white">{{ stats.totalStudents }}</p>
+              <p class="text-2xl font-semibold text-gray-900 dark:text-white">{{ props.stats.total_students }}</p>
             </div>
           </div>
         </div>
@@ -50,7 +64,7 @@ const stats = ref({
             </div>
             <div class="ml-4">
               <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Total Supervisors</p>
-              <p class="text-2xl font-semibold text-gray-900 dark:text-white">{{ stats.totalSupervisors }}</p>
+              <p class="text-2xl font-semibold text-gray-900 dark:text-white">{{ props.stats.total_supervisors }}</p>
             </div>
           </div>
         </div>
@@ -64,7 +78,7 @@ const stats = ref({
             </div>
             <div class="ml-4">
               <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Total Departments</p>
-              <p class="text-2xl font-semibold text-gray-900 dark:text-white">{{ stats.totalDepartments }}</p>
+              <p class="text-2xl font-semibold text-gray-900 dark:text-white">{{ props.stats.total_departments }}</p>
             </div>
           </div>
         </div>
@@ -78,7 +92,7 @@ const stats = ref({
             </div>
             <div class="ml-4">
               <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Total Projects</p>
-              <p class="text-2xl font-semibold text-gray-900 dark:text-white">{{ stats.totalProjects }}</p>
+              <p class="text-2xl font-semibold text-gray-900 dark:text-white">{{ props.stats.total_projects }}</p>
             </div>
           </div>
         </div>
@@ -91,8 +105,8 @@ const stats = ref({
               </svg>
             </div>
             <div class="ml-4">
-              <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Pending Allocations</p>
-              <p class="text-2xl font-semibold text-gray-900 dark:text-white">{{ stats.pendingAllocations }}</p>
+              <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Total Allocations</p>
+              <p class="text-2xl font-semibold text-gray-900 dark:text-white">{{ props.stats.total_allocations }}</p>
             </div>
           </div>
         </div>
@@ -105,8 +119,102 @@ const stats = ref({
               </svg>
             </div>
             <div class="ml-4">
-              <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Completed Projects</p>
-              <p class="text-2xl font-semibold text-gray-900 dark:text-white">{{ stats.completedProjects }}</p>
+              <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Success Rate</p>
+              <p class="text-2xl font-semibold text-gray-900 dark:text-white">{{ props.stats.allocation_success_rate }}%</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+          <div class="flex items-center">
+            <div class="p-2 bg-orange-100 rounded-lg">
+              <svg class="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+              </svg>
+            </div>
+            <div class="ml-4">
+              <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Avg Match Score</p>
+              <p class="text-2xl font-semibold text-gray-900 dark:text-white">
+                {{ props.stats.average_match_score ? props.stats.average_match_score : 'N/A' }}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+          <div class="flex items-center">
+            <div class="p-2 bg-teal-100 rounded-lg">
+              <svg class="w-6 h-6 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+              </svg>
+            </div>
+            <div class="ml-4">
+              <p class="text-sm font-medium text-gray-600 dark:text-gray-400">Total Users</p>
+              <p class="text-2xl font-semibold text-gray-900 dark:text-white">{{ props.stats.total_users }}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Recent Activities Section -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        <!-- Recent Allocations -->
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+          <h2 class="text-lg font-semibold mb-4 text-gray-900 dark:text-white">Recent Allocations</h2>
+          <div class="space-y-3">
+            <div v-for="allocation in props.recentAllocations" :key="allocation.id" class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+              <div>
+                <p class="font-medium text-gray-900 dark:text-white">{{ allocation.student?.user?.name }}</p>
+                <p class="text-sm text-gray-600 dark:text-gray-400">{{ allocation.project?.title }}</p>
+                <p class="text-xs text-gray-500 dark:text-gray-500">Supervisor: {{ allocation.supervisor?.user?.name }}</p>
+              </div>
+              <span class="px-2 py-1 text-xs rounded-full" :class="{
+                'bg-green-100 text-green-800': allocation.status === 'approved',
+                'bg-yellow-100 text-yellow-800': allocation.status === 'pending',
+                'bg-red-100 text-red-800': allocation.status === 'rejected'
+              }">
+                {{ allocation.status }}
+              </span>
+            </div>
+            <div v-if="props.recentAllocations.length === 0" class="text-center text-gray-500 dark:text-gray-400 py-4">
+              No recent allocations
+            </div>
+          </div>
+        </div>
+
+        <!-- Recent Projects -->
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+          <h2 class="text-lg font-semibold mb-4 text-gray-900 dark:text-white">Recent Projects</h2>
+          <div class="space-y-3">
+            <div v-for="project in props.recentProjects" :key="project.id" class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+              <div>
+                <p class="font-medium text-gray-900 dark:text-white">{{ project.title }}</p>
+                <p class="text-sm text-gray-600 dark:text-gray-400">{{ project.student?.user?.name }}</p>
+              </div>
+              <span class="px-2 py-1 text-xs rounded-full" :class="{
+                'bg-green-100 text-green-800': project.status === 'approved',
+                'bg-yellow-100 text-yellow-800': project.status === 'submitted',
+                'bg-gray-100 text-gray-800': project.status === 'draft'
+              }">
+                {{ project.status }}
+              </span>
+            </div>
+            <div v-if="props.recentProjects.length === 0" class="text-center text-gray-500 dark:text-gray-400 py-4">
+              No recent projects
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Department Statistics -->
+      <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6 mb-8">
+        <h2 class="text-lg font-semibold mb-4 text-gray-900 dark:text-white">Department Statistics</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div v-for="department in props.departmentStats" :key="department.id" class="p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
+            <h3 class="font-medium text-gray-900 dark:text-white mb-2">{{ department.name }}</h3>
+            <div class="flex justify-between text-sm">
+              <span class="text-gray-600 dark:text-gray-400">Students: {{ department.students_count }}</span>
+              <span class="text-gray-600 dark:text-gray-400">Supervisors: {{ department.supervisors_count }}</span>
             </div>
           </div>
         </div>

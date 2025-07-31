@@ -87,4 +87,9 @@ class User extends Authenticatable
     {
         return $this->role === 'supervisor';
     }
+
+    public function department(): HasOne
+    {
+        return $this->hasOne(Department::class, 'id', 'department_id');
+    }
 }
