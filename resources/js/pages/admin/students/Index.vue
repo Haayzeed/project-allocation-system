@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import AppLayout from '@/layouts/AppLayout.vue';
-import { ref, computed } from 'vue';
+import Alert from '@/components/Alert.vue';
+import { ref, computed, watch } from 'vue';
+import { router } from '@inertiajs/vue3';
 
 // Define props to receive data from the controller
 interface Props {
@@ -41,6 +43,13 @@ interface Props {
     name: string;
     code?: string;
   }>;
+  flash?: {
+    success?: string;
+    error?: string;
+    warning?: string;
+    info?: string;
+  };
+  errors?: Record<string, string>;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -54,7 +63,9 @@ const props = withDefaults(defineProps<Props>(), {
       total: 0
     }
   }),
-  departments: () => []
+  departments: () => [],
+  flash: () => ({}),
+  errors: () => ({})
 });
 
 // Computed properties for safe access
@@ -74,15 +85,22 @@ const breadcrumbs = [
 
 const showModal = ref(false);
 const activeTab = ref<'form' | 'csv'>('form');
+const isSubmitting = ref(false);
+
+// Alert states
+const showSuccessAlert = ref(!!props.flash?.success);
+const showErrorAlert = ref(false);
+const successMessage = ref(props.flash?.success || '');
+const errorMessage = ref('');
+const formErrors = ref<Record<string, string>>({});
+
 const newStudent = ref({ 
   name: '', 
   email: '', 
   department_id: '', 
   student_id: '', 
   level: '',
-  session: '',
-  password: '',
-  password_confirmation: ''
+  session: ''
 });
 
 const levels = ['100', '200', '300', '400', '500', '600', '700'];
@@ -91,7 +109,11 @@ const sessions = ['2023/2024', '2024/2025', '2025/2026', '2026/2027', '2027/2028
 function openModal() {
   showModal.value = true;
   activeTab.value = 'form';
+  // Clear any previous errors
+  formErrors.value = {};
+  showErrorAlert.value = false;
 }
+
 function closeModal() {
   showModal.value = false;
   // Reset form
@@ -101,18 +123,84 @@ function closeModal() {
     department_id: '', 
     student_id: '', 
     level: '',
-    session: '',
-    password: '',
-    password_confirmation: ''
+    session: ''
   };
+  formErrors.value = {};
+  showErrorAlert.value = false;
 }
+
+function dismissSuccessAlert() {
+  showSuccessAlert.value = false;
+}
+
+function dismissErrorAlert() {
+  showErrorAlert.value = false;
+}
+
 function submitForm() {
-  // Add form submission logic here
-  closeModal();
+  isSubmitting.value = true;
+  formErrors.value = {};
+  showErrorAlert.value = false;
+  
+  router.post(route('admin.students.store'), newStudent.value, {
+    onSuccess: () => {
+      // Close modal on success - redirect will handle the rest
+      closeModal();
+      isSubmitting.value = false;
+    },
+    onError: (errors) => {
+      // Handle validation errors
+      formErrors.value = errors;
+      
+      // Show general error message
+      errorMessage.value = 'Please check the form for errors and try again.';
+      showErrorAlert.value = true;
+      
+      isSubmitting.value = false;
+    },
+    onFinish: () => {
+      isSubmitting.value = false;
+    }
+  });
 }
+
 function handleCSVUpload(event: Event) {
   // Add CSV upload logic here
   closeModal();
+}
+
+// Watch for new flash messages
+watch(() => props.flash?.success, (newSuccess) => {
+  if (newSuccess) {
+    successMessage.value = newSuccess;
+    showSuccessAlert.value = true;
+  }
+});
+
+watch(() => props.flash?.error, (newError) => {
+  if (newError) {
+    errorMessage.value = newError;
+    showErrorAlert.value = true;
+  }
+});
+
+// Helper function to get field error
+function getFieldError(field: string): string {
+  return formErrors.value[field] || '';
+}
+
+function deleteStudent(id: string) {
+  router.delete(route('admin.students.destroy', { id }), {
+    onSuccess: () => {
+      successMessage.value = 'Student deleted successfully.';
+      showSuccessAlert.value = true;
+    }
+  });
+}
+
+// Helper function to check if field has error
+function hasFieldError(field: string): boolean {
+  return !!formErrors.value[field];
 }
 </script>
 
@@ -125,6 +213,22 @@ function handleCSVUpload(event: Event) {
           Add Student
         </button>
       </div>
+
+      <!-- Success Alert -->
+      <Alert 
+        v-if="showSuccessAlert"
+        type="success"
+        :message="successMessage"
+        @dismiss="dismissSuccessAlert"
+      />
+
+      <!-- Error Alert -->
+      <Alert 
+        v-if="showErrorAlert"
+        type="error"
+        :message="errorMessage"
+        @dismiss="dismissErrorAlert"
+      />
 
       <!-- Stats Cards -->
       <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
@@ -187,7 +291,7 @@ function handleCSVUpload(event: Event) {
 
       <!-- Modal -->
       <div v-if="showModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
-        <div class="bg-white dark:bg-gray-900 rounded-lg shadow-lg w-full max-w-md p-6 relative">
+        <div class="bg-white dark:bg-gray-900 rounded-lg shadow-lg w-full max-w-md p-6 relative max-h-[90vh] overflow-y-auto">
           <button @click="closeModal" class="absolute top-2 right-2 text-gray-400 hover:text-gray-600">&times;</button>
           <div class="flex border-b mb-4">
             <button :class="['flex-1 py-2', activeTab === 'form' ? 'border-b-2 border-blue-600 font-bold' : '']" @click="activeTab = 'form'">Form</button>
@@ -197,39 +301,80 @@ function handleCSVUpload(event: Event) {
             <form @submit.prevent="submitForm" class="space-y-4">
               <div>
                 <label class="block text-sm font-medium mb-1">Student ID</label>
-                <input v-model="newStudent.student_id" type="text" class="w-full border rounded px-3 py-2" required />
+                <input 
+                  v-model="newStudent.student_id" 
+                  type="text" 
+                  class="w-full border rounded px-3 py-2"
+                  :class="{ 'border-red-500': hasFieldError('student_id') }"
+                  required 
+                />
+                <p v-if="hasFieldError('student_id')" class="text-red-500 text-xs mt-1">{{ getFieldError('student_id') }}</p>
               </div>
               <div>
                 <label class="block text-sm font-medium mb-1">Name</label>
-                <input v-model="newStudent.name" type="text" class="w-full border rounded px-3 py-2" required />
+                <input 
+                  v-model="newStudent.name" 
+                  type="text" 
+                  class="w-full border rounded px-3 py-2"
+                  :class="{ 'border-red-500': hasFieldError('name') }"
+                  required 
+                />
+                <p v-if="hasFieldError('name')" class="text-red-500 text-xs mt-1">{{ getFieldError('name') }}</p>
               </div>
               <div>
                 <label class="block text-sm font-medium mb-1">Email</label>
-                <input v-model="newStudent.email" type="email" class="w-full border rounded px-3 py-2" required />
+                <input 
+                  v-model="newStudent.email" 
+                  type="email" 
+                  class="w-full border rounded px-3 py-2"
+                  :class="{ 'border-red-500': hasFieldError('email') }"
+                  required 
+                />
+                <p v-if="hasFieldError('email')" class="text-red-500 text-xs mt-1">{{ getFieldError('email') }}</p>
               </div>
               <div>
                 <label class="block text-sm font-medium mb-1">Department</label>
-                <select v-model="newStudent.department_id" class="w-full border rounded px-3 py-2" required>
+                <select 
+                  v-model="newStudent.department_id" 
+                  class="w-full border rounded px-3 py-2"
+                  :class="{ 'border-red-500': hasFieldError('department_id') }"
+                  required
+                >
                   <option value="" disabled>Select department</option>
                   <option v-for="dept in props.departments" :key="dept.id" :value="dept.id">{{ dept.name }}</option>
                 </select>
+                <p v-if="hasFieldError('department_id')" class="text-red-500 text-xs mt-1">{{ getFieldError('department_id') }}</p>
               </div>
               <div>
                 <label class="block text-sm font-medium mb-1">Level</label>
-                <select v-model="newStudent.level" class="w-full border rounded px-3 py-2" required>
+                <select 
+                  v-model="newStudent.level" 
+                  class="w-full border rounded px-3 py-2"
+                  :class="{ 'border-red-500': hasFieldError('level') }"
+                  required
+                >
                   <option value="" disabled>Select level</option>
                   <option v-for="lvl in levels" :key="lvl" :value="lvl">{{ lvl }}</option>
                 </select>
+                <p v-if="hasFieldError('level')" class="text-red-500 text-xs mt-1">{{ getFieldError('level') }}</p>
               </div>
               <div>
                 <label class="block text-sm font-medium mb-1">Session</label>
-                <select v-model="newStudent.session" class="w-full border rounded px-3 py-2" required>
+                <select 
+                  v-model="newStudent.session" 
+                  class="w-full border rounded px-3 py-2"
+                  :class="{ 'border-red-500': hasFieldError('session') }"
+                  required
+                >
                   <option value="" disabled>Select session</option>
                   <option v-for="sess in sessions" :key="sess" :value="sess">{{ sess }}</option>
                 </select>
+                <p v-if="hasFieldError('session')" class="text-red-500 text-xs mt-1">{{ getFieldError('session') }}</p>
               </div>
               <div class="flex justify-end">
-                <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded">Add</button>
+                <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded" :disabled="isSubmitting">
+                  {{ isSubmitting ? 'Adding...' : 'Add' }}
+                </button>
               </div>
             </form>
           </div>
@@ -302,7 +447,7 @@ function handleCSVUpload(event: Event) {
                         <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487a2.1 2.1 0 1 1 2.97 2.97L7.5 19.789l-4 1 1-4 12.362-12.302ZM19 7l-2-2" />
                       </svg>
                     </button>
-                    <button class="text-red-600 hover:text-red-800" title="Delete">
+                    <button class="text-red-600 hover:text-red-800" title="Delete" @click="deleteStudent(user.student?.id?.toString() || '')">
                       <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
                       </svg>

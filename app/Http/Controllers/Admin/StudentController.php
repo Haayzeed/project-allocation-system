@@ -2,11 +2,13 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Enums\RoleEnum;
 use App\Http\Controllers\Controller;
 use App\Models\Department;
 use App\Models\Student;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -29,18 +31,6 @@ class StudentController extends Controller
     }
 
     /**
-     * Show the form for creating a new student.
-     */
-    public function create(): Response
-    {
-        $departments = Department::all();
-
-        return Inertia::render('Admin/Students/Create', [
-            'departments' => $departments,
-        ]);
-    }
-
-    /**
      * Store a newly created student in storage.
      */
     public function store(Request $request)
@@ -48,27 +38,28 @@ class StudentController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users',
-            'password' => 'required|string|min:8|confirmed',
             'department_id' => 'required|exists:departments,id',
             'student_id' => 'required|string|max:50|unique:students',
             'level' => 'required|string|max:10',
             'session' => 'required|string|max:20',
         ]);
 
-        $user = User::create([
-            'name' => $validated['name'],
-            'email' => $validated['email'],
-            'password' => Hash::make($validated['password']),
-            'role' => 'student',
-        ]);
+        DB::transaction(function () use ($validated) {
+            $user = User::create([
+                'name' => $validated['name'],
+                'email' => $validated['email'],
+                'password' => Hash::make(str()->random(16)),
+                'role' => RoleEnum::STUDENT->value,
+            ]);
 
-        Student::create([
-            'user_id' => $user->id,
-            'department_id' => $validated['department_id'],
-            'student_id' => $validated['student_id'],
-            'level' => $validated['level'],
-            'session' => $validated['session'],
-        ]);
+            Student::create([
+                'user_id' => $user->id,
+                'department_id' => $validated['department_id'],
+                'student_id' => $validated['student_id'],
+                'level' => $validated['level'],
+                'session' => $validated['session'],
+            ]);
+        });
 
         return redirect()->route('admin.students.index')
             ->with('success', 'Student created successfully.');
@@ -135,7 +126,12 @@ class StudentController extends Controller
      */
     public function destroy(Student $student)
     {
-        $student->user->delete(); // This will cascade delete the student
+        if ($student->allocation) {
+            return redirect()->route('admin.students.index')
+                ->with('error', 'Student has an allocation and cannot be deleted.');
+        }
+
+        $student->user->delete();
 
         return redirect()->route('admin.students.index')
             ->with('success', 'Student deleted successfully.');
