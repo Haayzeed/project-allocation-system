@@ -6,7 +6,7 @@ import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, Sid
 import { type NavItem } from '@/types';
 import { Link, usePage } from '@inertiajs/vue3';
 import { computed } from 'vue';
-import { BookOpen, Folder, LayoutGrid, User, FolderKanban, School, GraduationCap } from 'lucide-vue-next';
+import { BookOpen, Folder, LayoutGrid, User, FolderKanban, School, GraduationCap, Settings } from 'lucide-vue-next';
 import AppLogo from './AppLogo.vue';
 
 const page = usePage();
@@ -75,6 +75,11 @@ const mainNavItems = computed(() => {
         href: '/admin/projects',
         icon: FolderKanban,
       },
+      {
+        title: 'Configurations',
+        href: '/admin/configs',
+        icon: Settings,
+      },
     ];
   } else {
     return [
@@ -102,6 +107,11 @@ const mainNavItems = computed(() => {
         title: 'Projects',
         href: '/admin/projects',
         icon: FolderKanban,
+      },
+      {
+        title: 'Configurations',
+        href: '/admin/configs',
+        icon: Settings,
       },
     ];
   }

@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Allocation;
+use App\Models\Config;
 use App\Models\Project;
 use App\Models\Student;
 use App\Models\Supervisor;
@@ -136,11 +137,14 @@ class AllocationService
      */
     private function prepareSupervisorsData(): array
     {
+        $maxStudentsPerSupervisor = Config::getValue('max_students_per_supervisor', 8);
         $supervisors = Supervisor::with(['user', 'department', 'specializations', 'allocations'])
             ->where('is_active', true)
             ->get();
 
-        return $supervisors->map(function ($supervisor) {
+        return $supervisors->map(function ($supervisor) use ($maxStudentsPerSupervisor) {
+            $currentStudentCount = $supervisor->allocations()->where('status', 'approved')->count();
+            
             return [
                 'id' => $supervisor->id,
                 'name' => $supervisor->user->name,
@@ -153,8 +157,8 @@ class AllocationService
                     'name' => $supervisor->department->name,
                     'code' => $supervisor->department->code,
                 ],
-                'max_students' => $supervisor->max_students,
-                'current_student_count' => $supervisor->current_student_count,
+                'max_students' => $maxStudentsPerSupervisor,
+                'current_student_count' => $currentStudentCount,
                 'specializations' => $supervisor->specializations->map(function ($specialization) {
                     return [
                         'id' => $specialization->id,
@@ -249,16 +253,18 @@ class AllocationService
      */
     public function allocateProject(Project $project): ?Allocation
     {
+        $maxStudentsPerSupervisor = Config::getValue('max_students_per_supervisor', 8);
+        
         // Get available supervisors (active and not at capacity)
         $availableSupervisors = Supervisor::with(['specializations', 'allocations'])
             ->where('is_active', true)
-            ->whereDoesntHave('allocations', function ($query) {
-                $query->where('status', 'approved');
-            })
-            ->orWhereHas('allocations', function ($query) {
-                $query->where('status', 'approved');
-            }, '<', DB::raw('max_students'))
-            ->get();
+            ->get()
+            ->filter(function ($supervisor) use ($maxStudentsPerSupervisor) {
+                $approvedAllocationsCount = $supervisor->allocations()
+                    ->where('status', 'approved')
+                    ->count();
+                return $approvedAllocationsCount < $maxStudentsPerSupervisor;
+            });
 
         if ($availableSupervisors->isEmpty()) {
             throw new \Exception('No available supervisors found.');
@@ -331,9 +337,9 @@ class AllocationService
         }
 
         // Check supervisor capacity (prefer supervisors with more capacity)
-        $currentLoad = $supervisor->current_student_count;
-        $maxCapacity = $supervisor->max_students;
-        $capacityScore = (($maxCapacity - $currentLoad) / $maxCapacity) * 10;
+        $maxCapacity = Config::getValue('max_students_per_supervisor', 8);
+        $currentLoad = $supervisor->allocations()->where('status', 'approved')->count();
+        $capacityScore = $maxCapacity > 0 ? (($maxCapacity - $currentLoad) / $maxCapacity) * 10 : 0;
         $score += $capacityScore; // Up to 10% bonus for capacity
 
         // Ensure score doesn't exceed 100

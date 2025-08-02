@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Allocation;
+use App\Models\Config;
 use App\Models\Department;
 use App\Models\Project;
 use App\Models\Student;
@@ -60,21 +61,23 @@ class DashboardController extends Controller
         $departmentStats = Department::withCount(['students', 'supervisors'])
             ->get();
 
+        $maxStudentsPerSupervisor = Config::getValue('max_students_per_supervisor', 8);
+        
         $supervisorWorkload = Supervisor::with(['user:id,name'])
             ->withCount(['allocations' => function ($query) {
                 $query->where('status', 'approved');
             }])
             ->get()
-            ->map(function ($supervisor) {
+            ->map(function ($supervisor) use ($maxStudentsPerSupervisor) {
                 return [
                     'id' => $supervisor->id,
                     'name' => $supervisor->user->name,
                     'current_students' => $supervisor->allocations_count,
-                    'max_students' => $supervisor->max_students,
-                    'percentage_filled' => $supervisor->max_students > 0 
-                        ? round(($supervisor->allocations_count / $supervisor->max_students) * 100, 1)
+                    'max_students' => $maxStudentsPerSupervisor,
+                    'percentage_filled' => $maxStudentsPerSupervisor > 0 
+                        ? round(($supervisor->allocations_count / $maxStudentsPerSupervisor) * 100, 1)
                         : 0,
-                    'can_accept_more' => $supervisor->allocations_count < $supervisor->max_students,
+                    'can_accept_more' => $supervisor->allocations_count < $maxStudentsPerSupervisor,
                 ];
             });
 

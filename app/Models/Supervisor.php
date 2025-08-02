@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Config;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -18,7 +19,6 @@ class Supervisor extends Model
         'staff_id',
         'title',
         'bio',
-        'max_students',
         'is_active',
     ];
 
@@ -73,6 +73,7 @@ class Supervisor extends Model
      */
     public function canAcceptMoreStudents(): bool
     {
-        return $this->current_student_count < $this->max_students;
+        $maxStudentsPerSupervisor = Config::getValue('max_students_per_supervisor', 8);
+        return $this->current_student_count < $maxStudentsPerSupervisor;
     }
 } 
