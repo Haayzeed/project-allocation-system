@@ -2,7 +2,7 @@
 import AppLayout from '@/layouts/AppLayout.vue';
 import Alert from '@/components/Alert.vue';
 import { ref, computed, watch } from 'vue';
-import { router } from '@inertiajs/vue3';
+import { router, Link } from '@inertiajs/vue3';
 
 // Define props to receive data from the controller
 interface Props {
@@ -89,10 +89,11 @@ const isSubmitting = ref(false);
 
 // Alert states
 const showSuccessAlert = ref(!!props.flash?.success);
-const showErrorAlert = ref(false);
+const showErrorAlert = ref(!!props.flash?.error);
 const successMessage = ref(props.flash?.success || '');
-const errorMessage = ref('');
+const errorMessage = ref(props.flash?.error || '');
 const formErrors = ref<Record<string, string>>({});
+const errorShownTimestamp = ref(0);
 
 const newStudent = ref({ 
   name: '', 
@@ -177,10 +178,16 @@ watch(() => props.flash?.success, (newSuccess) => {
   }
 });
 
+// Watch for flash errors - always show if there's an error and alert is dismissed
 watch(() => props.flash?.error, (newError) => {
   if (newError) {
     errorMessage.value = newError;
     showErrorAlert.value = true;
+    errorShownTimestamp.value = Date.now();
+  } else {
+    // Clear error state when no error
+    showErrorAlert.value = false;
+    errorMessage.value = '';
   }
 });
 
@@ -189,13 +196,29 @@ function getFieldError(field: string): string {
   return formErrors.value[field] || '';
 }
 
-function deleteStudent(id: string) {
-  router.delete(route('admin.students.destroy', { id }), {
-    onSuccess: () => {
-      successMessage.value = 'Student deleted successfully.';
-      showSuccessAlert.value = true;
-    }
-  });
+function deleteStudent(userId: number) {
+  if (confirm('Are you sure you want to delete this student? This action cannot be undone.')) {
+    // Clear previous alerts
+    showSuccessAlert.value = false;
+    showErrorAlert.value = false;
+    
+    router.delete(route('admin.students.destroy', { id: userId }), {
+      onSuccess: (page: any) => {
+        // Check if there's an error in flash messages (like validation errors)
+        if (page.props.flash?.error) {
+          errorMessage.value = page.props.flash.error;
+          showErrorAlert.value = true;
+        } else {
+          successMessage.value = 'Student deleted successfully.';
+          showSuccessAlert.value = true;
+        }
+      },
+      onError: (errors) => {
+        errorMessage.value = 'Failed to delete student. Please try again.';
+        showErrorAlert.value = true;
+      }
+    });
+  }
 }
 
 // Helper function to check if field has error
@@ -447,7 +470,7 @@ function hasFieldError(field: string): boolean {
                         <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487a2.1 2.1 0 1 1 2.97 2.97L7.5 19.789l-4 1 1-4 12.362-12.302ZM19 7l-2-2" />
                       </svg>
                     </button>
-                    <button class="text-red-600 hover:text-red-800" title="Delete" @click="deleteStudent(user.student?.id?.toString() || '')">
+                                         <button class="text-red-600 hover:text-red-800" title="Delete" @click="deleteStudent(user.id)">
                       <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
                       </svg>
@@ -466,41 +489,39 @@ function hasFieldError(field: string): boolean {
 
         <!-- Pagination -->
         <div v-if="studentsMeta.last_page > 1" class="bg-white dark:bg-gray-800 px-4 py-3 border-t border-gray-200 dark:border-gray-700 sm:px-6">
-          <div class="flex items-center justify-between">
-            <div class="flex justify-between flex-1 sm:hidden">
-              <a href="#" class="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
-                Previous
-              </a>
-              <a href="#" class="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
-                Next
-              </a>
+          <div class="flex flex-col space-y-3 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
+            <!-- Pagination Info -->
+            <div>
+              <p class="text-sm text-gray-700 dark:text-gray-300">
+                Showing
+                <span class="font-medium">{{ ((studentsMeta.current_page - 1) * studentsMeta.per_page) + 1 }}</span>
+                to
+                <span class="font-medium">{{ Math.min(studentsMeta.current_page * studentsMeta.per_page, studentsMeta.total) }}</span>
+                of
+                <span class="font-medium">{{ studentsMeta.total }}</span>
+                results
+              </p>
             </div>
-            <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-              <div>
-                <p class="text-sm text-gray-700 dark:text-gray-300">
-                  Showing
-                  <span class="font-medium">{{ ((studentsMeta.current_page - 1) * studentsMeta.per_page) + 1 }}</span>
-                  to
-                  <span class="font-medium">{{ Math.min(studentsMeta.current_page * studentsMeta.per_page, studentsMeta.total) }}</span>
-                  of
-                  <span class="font-medium">{{ studentsMeta.total }}</span>
-                  results
-                </p>
-              </div>
-              <div>
-                <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
-                  <a v-for="link in studentsLinks" :key="link.label" 
-                     :href="link.url" 
-                     class="relative inline-flex items-center px-2 py-2 border text-sm font-medium"
-                     :class="{
-                       'bg-blue-50 border-blue-500 text-blue-600': link.active,
-                       'bg-white border-gray-300 text-gray-500 hover:bg-gray-50': !link.active && link.url,
-                       'bg-gray-100 border-gray-300 text-gray-400 cursor-not-allowed': !link.url
-                     }"
-                     v-html="link.label">
-                  </a>
-                </nav>
-              </div>
+            
+            <!-- Pagination Links -->
+            <div>
+              <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                <template v-for="link in studentsLinks" :key="link.label">
+                  <Link v-if="link.url" 
+                        :href="link.url" 
+                        class="relative inline-flex items-center px-2 py-2 border text-sm font-medium"
+                        :class="{
+                          'bg-blue-50 border-blue-500 text-blue-600': link.active,
+                          'bg-white border-gray-300 text-gray-500 hover:bg-gray-50': !link.active
+                        }"
+                        v-html="link.label">
+                  </Link>
+                  <span v-else 
+                        class="relative inline-flex items-center px-2 py-2 border bg-gray-100 border-gray-300 text-gray-400 cursor-not-allowed text-sm font-medium"
+                        v-html="link.label">
+                  </span>
+                </template>
+              </nav>
             </div>
           </div>
         </div>
