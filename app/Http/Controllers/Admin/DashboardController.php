@@ -18,6 +18,7 @@ class DashboardController extends Controller
 {
     public function index(): Response
     {
+        // dd('here');
         $totalUsers = User::count();
         $totalStudents = User::where('role', 'student')->count();
         $totalSupervisors = User::where('role', 'supervisor')->count();

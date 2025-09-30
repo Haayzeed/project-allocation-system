@@ -15,9 +15,9 @@ class AllocationService
 {
     protected LLMService $llmService;
 
-    public function __construct(LLMService $llmService = null)
+    public function __construct()
     {
-        $this->llmService = $llmService ?? LLMFactory::create();
+        $this->llmService = LLMFactory::create();
     }
 
     /**
@@ -38,12 +38,31 @@ class AllocationService
         }
 
         try {
-            // Prepare data for LLM
             $students = $this->prepareStudentsData($submittedProjects);
             $projects = $this->prepareProjectsData($submittedProjects);
+            
+            // Get all unique departments from students
+            $studentDepartments = $submittedProjects->pluck('student.department_id')->unique()->filter();
+            
+            // Check if supervisors exist for each department
+            $departmentErrors = [];
+            foreach ($studentDepartments as $departmentId) {
+                $supervisorsInDept = $this->getSupervisorsInSameDepartment($departmentId);
+                if ($supervisorsInDept->isEmpty()) {
+                    $department = \App\Models\Department::find($departmentId);
+                    $departmentErrors[] = "No available supervisors found in the {$department->name} department.";
+                }
+            }
+            
+            if (!empty($departmentErrors)) {
+                return [
+                    'allocations' => [],
+                    'errors' => $departmentErrors,
+                ];
+            }
+            
             $supervisors = $this->prepareSupervisorsData();
 
-            // Get LLM recommendations
             $llmRecommendations = $this->llmService->generateAllocationRecommendations(
                 $students,
                 $projects,
@@ -57,7 +76,6 @@ class AllocationService
                 ];
             }
 
-            // Process LLM recommendations and create allocations
             $allocations = $this->processLLMRecommendations($llmRecommendations['allocations']);
 
             return [
@@ -171,6 +189,23 @@ class AllocationService
     }
 
     /**
+     * Get supervisors from the same department as the student.
+     */
+    private function getSupervisorsInSameDepartment(int $studentDepartmentId): Collection
+    {
+        $maxStudentsPerSupervisor = Config::getValue('max_students_per_supervisor', 8);
+        
+        return Supervisor::with(['user', 'department', 'specializations', 'allocations'])
+            ->where('is_active', true)
+            ->where('department_id', $studentDepartmentId)
+            ->get()
+            ->filter(function ($supervisor) use ($maxStudentsPerSupervisor) {
+                $currentStudentCount = $supervisor->allocations()->where('status', 'approved')->count();
+                return $currentStudentCount < $maxStudentsPerSupervisor;
+            });
+    }
+
+    /**
      * Process LLM recommendations and create allocations.
      */
     private function processLLMRecommendations(array $recommendations): array
@@ -220,9 +255,21 @@ class AllocationService
             throw new \Exception("Student {$studentId} already has an approved allocation");
         }
 
+        // Get student and supervisor with departments
+        $student = Student::with('department')->find($studentId);
+        $supervisor = Supervisor::with('department')->find($supervisorId);
+        
+        if (!$student || !$supervisor) {
+            throw new \Exception("Student or supervisor not found");
+        }
+
+        // Validate department matching
+        if ($student->department_id !== $supervisor->department_id) {
+            throw new \Exception("Supervisor {$supervisorId} is not in the same department as student {$studentId}");
+        }
+
         // Check if supervisor can accept more students
-        $supervisor = Supervisor::find($supervisorId);
-        if (!$supervisor || !$supervisor->canAcceptMoreStudents()) {
+        if (!$supervisor->canAcceptMoreStudents()) {
             throw new \Exception("Supervisor {$supervisorId} cannot accept more students");
         }
 
@@ -240,7 +287,7 @@ class AllocationService
             'project_id' => $projectId,
             'supervisor_id' => $supervisorId,
             'student_id' => $studentId,
-            'status' => 'pending',
+            'status' => 'approved',
             'match_score' => $matchScore,
             'admin_notes' => $recommendation['reasoning'] ?? 'AI-generated allocation',
         ]);
@@ -253,28 +300,24 @@ class AllocationService
      */
     public function allocateProject(Project $project): ?Allocation
     {
-        $maxStudentsPerSupervisor = Config::getValue('max_students_per_supervisor', 8);
-        
-        // Get available supervisors (active and not at capacity)
-        $availableSupervisors = Supervisor::with(['specializations', 'allocations'])
-            ->where('is_active', true)
-            ->get()
-            ->filter(function ($supervisor) use ($maxStudentsPerSupervisor) {
-                $approvedAllocationsCount = $supervisor->allocations()
-                    ->where('status', 'approved')
-                    ->count();
-                return $approvedAllocationsCount < $maxStudentsPerSupervisor;
-            });
+        // Get student's department
+        $student = $project->student;
+        if (!$student) {
+            throw new \Exception('Student not found for this project.');
+        }
+
+        // Get available supervisors from the same department
+        $availableSupervisors = $this->getSupervisorsInSameDepartment($student->department_id);
 
         if ($availableSupervisors->isEmpty()) {
-            throw new \Exception('No available supervisors found.');
+            throw new \Exception("No available supervisors found in the {$student->department->name} department.");
         }
 
         // Calculate match scores for each supervisor
         $matches = $this->calculateMatchScores($project, $availableSupervisors);
 
         if ($matches->isEmpty()) {
-            throw new \Exception('No suitable supervisors found for this project.');
+            throw new \Exception('No suitable supervisors found for this project in the same department.');
         }
 
         // Get the best match
@@ -285,7 +328,7 @@ class AllocationService
             'project_id' => $project->id,
             'supervisor_id' => $bestMatch['supervisor']->id,
             'student_id' => $project->student_id,
-            'status' => 'pending',
+            'status' => 'approved',
             'match_score' => $bestMatch['score'],
         ]);
 

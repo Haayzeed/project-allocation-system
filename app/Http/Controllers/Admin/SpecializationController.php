@@ -89,6 +89,12 @@ class SpecializationController extends Controller
      */
     public function destroy(Specialization $specialization)
     {
+        // Check if specialization has any supervisors or projects
+        if ($specialization->supervisors()->count() > 0 || $specialization->projects()->count() > 0) {
+            return redirect()->route('admin.specializations.index')
+                ->with('error', 'Cannot delete specialization that has supervisors or projects assigned.');
+        }
+
         $specialization->delete();
 
         return redirect()->route('admin.specializations.index')

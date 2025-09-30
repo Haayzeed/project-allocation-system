@@ -100,7 +100,7 @@ class ProjectController extends Controller
 
                 return back()->with('success', 
                     "Project '{$project->title}' has been allocated to a supervisor with a match score of " . 
-                    round($allocation->match_score, 1) . "%. Status: Pending approval."
+                    round($allocation->match_score ?? 0, 1) . "%. Status: Approved."
                 );
             } else {
                 return back()->with('error', 'Failed to allocate supervisor. No suitable matches found.');
@@ -125,8 +125,53 @@ class ProjectController extends Controller
             'specializations'
         ]);
 
+        $formattedProject = [
+            'id' => $project->id,
+            'title' => $project->title,
+            'description' => $project->description,
+            'objectives' => $project->objectives,
+            'methodology' => $project->methodology,
+            'status' => $project->status,
+            'created_at' => $project->created_at,
+            'student' => [
+                'id' => $project->student->id,
+                'user' => [
+                    'id' => $project->student->user->id,
+                    'name' => $project->student->user->name,
+                    'email' => $project->student->user->email,
+                ],
+                'student_id' => $project->student->student_id,
+                'level' => $project->student->level,
+                'session' => $project->student->session,
+                'department' => [
+                    'id' => $project->student->department->id,
+                    'name' => $project->student->department->name,
+                ],
+            ],
+            'specializations' => $project->specializations->map(function ($spec) {
+                return [
+                    'id' => $spec->id,
+                    'name' => $spec->name,
+                ];
+            }),
+            'allocation' => $project->allocation ? [
+                'id' => $project->allocation->id,
+                'status' => $project->allocation->status,
+                'match_score' => $project->allocation->match_score,
+                'admin_notes' => $project->allocation->admin_notes,
+                'supervisor' => [
+                    'id' => $project->allocation->supervisor->id,
+                    'user' => [
+                        'id' => $project->allocation->supervisor->user->id,
+                        'name' => $project->allocation->supervisor->user->name,
+                        'email' => $project->allocation->supervisor->user->email,
+                    ],
+                ],
+            ] : null,
+        ];
+
         return Inertia::render('admin/projects/Show', [
-            'project' => $project,
+            'project' => $formattedProject,
         ]);
     }
 
@@ -148,11 +193,21 @@ class ProjectController extends Controller
             $allocatedCount = count($results['allocations']);
             $errorCount = count($results['errors']);
 
-            $message = "Bulk allocation completed. {$allocatedCount} projects allocated successfully.";
-            if ($errorCount > 0) {
-                $message .= " {$errorCount} errors occurred.";
+            // If no allocations were made and there are errors, show danger alert
+            if ($allocatedCount === 0 && $errorCount > 0) {
+                $errorMessages = implode(' ', $results['errors']);
+                return back()->with('error', "Bulk allocation failed: {$errorMessages}");
             }
 
+            // If some allocations were made but there were errors, show warning
+            if ($allocatedCount > 0 && $errorCount > 0) {
+                $errorMessages = implode(' ', $results['errors']);
+                $message = "Bulk allocation completed with issues. {$allocatedCount} projects allocated successfully. Issues: {$errorMessages}";
+                return back()->with('warning', $message);
+            }
+
+            // If all allocations were successful
+            $message = "Bulk allocation completed successfully. {$allocatedCount} projects allocated.";
             return back()->with('success', $message);
 
         } catch (\Exception $e) {

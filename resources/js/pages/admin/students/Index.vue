@@ -84,8 +84,11 @@ const breadcrumbs = [
 ];
 
 const showModal = ref(false);
+const showEditModal = ref(false);
 const activeTab = ref<'form' | 'csv'>('form');
 const isSubmitting = ref(false);
+const isUpdating = ref(false);
+const editingStudent = ref<any>(null);
 
 // Alert states
 const showSuccessAlert = ref(!!props.flash?.success);
@@ -96,6 +99,15 @@ const formErrors = ref<Record<string, string>>({});
 const errorShownTimestamp = ref(0);
 
 const newStudent = ref({ 
+  name: '', 
+  email: '', 
+  department_id: '', 
+  student_id: '', 
+  level: '',
+  session: ''
+});
+
+const editStudent = ref({ 
   name: '', 
   email: '', 
   department_id: '', 
@@ -119,6 +131,36 @@ function closeModal() {
   showModal.value = false;
   // Reset form
   newStudent.value = { 
+    name: '', 
+    email: '', 
+    department_id: '', 
+    student_id: '', 
+    level: '',
+    session: ''
+  };
+  formErrors.value = {};
+  showErrorAlert.value = false;
+}
+
+function openEditModal(student: any) {
+  editingStudent.value = student;
+  editStudent.value = {
+    name: student.name,
+    email: student.email,
+    department_id: student.student?.department_id || '',
+    student_id: student.student?.student_id || '',
+    level: student.student?.level || '',
+    session: student.student?.session || ''
+  };
+  showEditModal.value = true;
+  formErrors.value = {};
+  showErrorAlert.value = false;
+}
+
+function closeEditModal() {
+  showEditModal.value = false;
+  editingStudent.value = null;
+  editStudent.value = { 
     name: '', 
     email: '', 
     department_id: '', 
@@ -165,6 +207,28 @@ function submitForm() {
   });
 }
 
+function submitEditForm() {
+  isUpdating.value = true;
+  formErrors.value = {};
+  showErrorAlert.value = false;
+  
+  router.put(route('admin.students.update', { student: editingStudent.value.student.id }), editStudent.value, {
+    onSuccess: () => {
+      closeEditModal();
+      isUpdating.value = false;
+    },
+    onError: (errors) => {
+      formErrors.value = errors;
+      errorMessage.value = 'Please check the form for errors and try again.';
+      showErrorAlert.value = true;
+      isUpdating.value = false;
+    },
+    onFinish: () => {
+      isUpdating.value = false;
+    }
+  });
+}
+
 function handleCSVUpload(event: Event) {
   // Add CSV upload logic here
   closeModal();
@@ -196,13 +260,13 @@ function getFieldError(field: string): string {
   return formErrors.value[field] || '';
 }
 
-function deleteStudent(userId: number) {
+function deleteStudent(user: any) {
   if (confirm('Are you sure you want to delete this student? This action cannot be undone.')) {
     // Clear previous alerts
     showSuccessAlert.value = false;
     showErrorAlert.value = false;
     
-    router.delete(route('admin.students.destroy', { id: userId }), {
+    router.delete(route('admin.students.destroy', { student: user.student?.id }), {
       onSuccess: (page: any) => {
         // Check if there's an error in flash messages (like validation errors)
         if (page.props.flash?.error) {
@@ -414,6 +478,99 @@ function hasFieldError(field: string): boolean {
       </div>
       <!-- End Modal -->
 
+      <!-- Edit Modal -->
+      <div v-if="showEditModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+        <div class="bg-white dark:bg-gray-900 rounded-lg shadow-lg w-full max-w-2xl p-6 relative max-h-[90vh] overflow-y-auto">
+          <button @click="closeEditModal" class="absolute top-2 right-2 text-gray-400 hover:text-gray-600">&times;</button>
+          <h2 class="text-lg font-semibold mb-4 text-gray-900 dark:text-white">Edit Student</h2>
+          <form @submit.prevent="submitEditForm" class="space-y-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-sm font-medium mb-1">Student ID</label>
+                <input 
+                  v-model="editStudent.student_id" 
+                  type="text" 
+                  class="w-full border rounded px-3 py-2"
+                  :class="{ 'border-red-500': hasFieldError('student_id') }"
+                  required 
+                />
+                <p v-if="hasFieldError('student_id')" class="text-red-500 text-xs mt-1">{{ getFieldError('student_id') }}</p>
+              </div>
+              <div>
+                <label class="block text-sm font-medium mb-1">Name</label>
+                <input 
+                  v-model="editStudent.name" 
+                  type="text" 
+                  class="w-full border rounded px-3 py-2"
+                  :class="{ 'border-red-500': hasFieldError('name') }"
+                  required 
+                />
+                <p v-if="hasFieldError('name')" class="text-red-500 text-xs mt-1">{{ getFieldError('name') }}</p>
+              </div>
+              <div>
+                <label class="block text-sm font-medium mb-1">Email</label>
+                <input 
+                  v-model="editStudent.email" 
+                  type="email" 
+                  class="w-full border rounded px-3 py-2"
+                  :class="{ 'border-red-500': hasFieldError('email') }"
+                  required 
+                />
+                <p v-if="hasFieldError('email')" class="text-red-500 text-xs mt-1">{{ getFieldError('email') }}</p>
+              </div>
+              <div>
+                <label class="block text-sm font-medium mb-1">Department</label>
+                <select 
+                  v-model="editStudent.department_id" 
+                  class="w-full border rounded px-3 py-2"
+                  :class="{ 'border-red-500': hasFieldError('department_id') }"
+                  required
+                >
+                  <option value="" disabled>Select department</option>
+                  <option v-for="dept in props.departments" :key="dept.id" :value="dept.id">{{ dept.name }}</option>
+                </select>
+                <p v-if="hasFieldError('department_id')" class="text-red-500 text-xs mt-1">{{ getFieldError('department_id') }}</p>
+              </div>
+              <div>
+                <label class="block text-sm font-medium mb-1">Level</label>
+                <select 
+                  v-model="editStudent.level" 
+                  class="w-full border rounded px-3 py-2"
+                  :class="{ 'border-red-500': hasFieldError('level') }"
+                  required
+                >
+                  <option value="" disabled>Select level</option>
+                  <option v-for="lvl in levels" :key="lvl" :value="lvl">{{ lvl }}</option>
+                </select>
+                <p v-if="hasFieldError('level')" class="text-red-500 text-xs mt-1">{{ getFieldError('level') }}</p>
+              </div>
+              <div>
+                <label class="block text-sm font-medium mb-1">Session</label>
+                <select 
+                  v-model="editStudent.session" 
+                  class="w-full border rounded px-3 py-2"
+                  :class="{ 'border-red-500': hasFieldError('session') }"
+                  required
+                >
+                  <option value="" disabled>Select session</option>
+                  <option v-for="sess in sessions" :key="sess" :value="sess">{{ sess }}</option>
+                </select>
+                <p v-if="hasFieldError('session')" class="text-red-500 text-xs mt-1">{{ getFieldError('session') }}</p>
+              </div>
+            </div>
+            <div class="flex justify-end space-x-3 pt-4">
+              <button type="button" @click="closeEditModal" class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-600 hover:bg-gray-200 dark:hover:bg-gray-500 rounded-md transition-colors">
+                Cancel
+              </button>
+              <button type="submit" class="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-md transition-colors" :disabled="isUpdating">
+                {{ isUpdating ? 'Updating...' : 'Update Student' }}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+      <!-- End Edit Modal -->
+
       <!-- Students Table -->
       <div class="bg-white dark:bg-gray-800 rounded-lg shadow">
         <div class="overflow-x-auto">
@@ -465,12 +622,16 @@ function hasFieldError(field: string): boolean {
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
                   <div class="flex gap-2">
-                    <button class="text-blue-600 hover:text-blue-800" title="Edit">
+                    <button 
+                      @click="openEditModal(user)"
+                      class="text-blue-600 hover:text-blue-800 p-1 rounded"
+                      title="Edit"
+                    >
                       <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487a2.1 2.1 0 1 1 2.97 2.97L7.5 19.789l-4 1 1-4 12.362-12.302ZM19 7l-2-2" />
                       </svg>
                     </button>
-                                         <button class="text-red-600 hover:text-red-800" title="Delete" @click="deleteStudent(user.id)">
+                                         <button class="text-red-600 hover:text-red-800" title="Delete" @click="deleteStudent(user)">
                       <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
                       </svg>

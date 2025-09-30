@@ -14,25 +14,17 @@ class DashboardController extends Controller
      */
     public function index(): Response
     {
-        $student = Auth::user()->student;
+        $user = Auth::user();
         
-        $student->load([
-            'department',
-            'projects.specializations',
-            'allocation.supervisor.user',
-            'allocation.project'
+        $user->load([
+            'student.department',
+            'student.projects.specializations',
+            'student.allocation.supervisor.user',
+            'student.allocation.project'
         ]);
 
-        $stats = [
-            'total_projects' => $student->projects()->count(),
-            'submitted_projects' => $student->projects()->where('status', 'submitted')->count(),
-            'approved_projects' => $student->projects()->where('status', 'approved')->count(),
-            'has_allocation' => $student->allocation && $student->allocation->status === 'approved',
-        ];
-
-        return Inertia::render('Student/Dashboard', [
-            'student' => $student,
-            'stats' => $stats,
+        return Inertia::render('students/Index', [
+            'user' => $user,
         ]);
     }
 } 

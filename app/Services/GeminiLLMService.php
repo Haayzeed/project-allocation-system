@@ -13,8 +13,8 @@ class GeminiLLMService extends LLMService
     public function __construct(array $config = [])
     {
         parent::__construct($config);
-        $this->baseUrl = $config['base_url'] ?? 'https://generativelanguage.googleapis.com';
-        $this->model = $config['model'] ?? 'gemini-1.5-flash';
+        $this->baseUrl = $config['base_url'];
+        $this->model = $config['model'];
     }
 
     /**
@@ -29,7 +29,6 @@ class GeminiLLMService extends LLMService
         try {
             $formattedData = $this->formatDataForLLM($students, $projects, $supervisors);
             $prompt = $this->buildAllocationPrompt($formattedData);
-            
             $response = $this->sendRequest($prompt);
             
             if (!isset($response['candidates'][0]['content']['parts'][0]['text'])) {
@@ -66,7 +65,6 @@ class GeminiLLMService extends LLMService
     protected function sendRequest(string $prompt, array $options = []): array
     {
         $url = "{$this->baseUrl}/{$this->apiVersion}/models/{$this->model}:generateContent";
-
         $payload = [
             'contents' => [
                 [
@@ -138,10 +136,11 @@ SUPERVISORS DATA:
 ALLOCATION RULES:
 1. Each student can only be allocated to one supervisor
 2. Supervisors have maximum capacity limits (max_students field)
-3. Prioritize matching project specializations with supervisor specializations
-4. Consider department alignment (bonus points for same department)
-5. Distribute workload evenly among supervisors
+3. CRITICAL: Students MUST be allocated to supervisors from the SAME DEPARTMENT only
+4. Prioritize matching project specializations with supervisor specializations
+5. Distribute workload evenly among supervisors within the same department
 6. Ensure all allocations are feasible and respect constraints
+7. If no supervisors are available in the same department, do not create allocations for those students
 
 Please provide your response in the following JSON format:
 {

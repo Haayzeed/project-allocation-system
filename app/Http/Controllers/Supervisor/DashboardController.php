@@ -15,6 +15,7 @@ class DashboardController extends Controller
      */
     public function index(): Response
     {
+        // dd('here');
         $supervisor = Auth::user()->supervisor;
         
         $supervisor->load([
@@ -32,11 +33,13 @@ class DashboardController extends Controller
             'pending_allocations' => $supervisor->allocations()->where('status', 'pending')->count(),
             'current_student_count' => $supervisor->current_student_count,
             'max_students' => $maxStudentsPerSupervisor,
+            
         ];
 
-        return Inertia::render('Supervisor/Dashboard', [
+        return Inertia::render('supervisor/Index', [
             'supervisor' => $supervisor,
             'stats' => $stats,
+            'total_students' => $supervisor->allocations()->count(),
         ]);
     }
 } 

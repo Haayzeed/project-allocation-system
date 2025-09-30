@@ -9,7 +9,7 @@ class LLMFactory
     /**
      * Create an LLM service instance based on configuration.
      */
-    public static function create(string $provider = null): LLMService
+    public static function create(string $provider = 'gemini'): LLMService
     {
         $provider = $provider ?? Config::get('llm.default_provider', 'gemini');
         $config = Config::get("llm.providers.{$provider}", []);

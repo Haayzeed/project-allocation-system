@@ -131,6 +131,7 @@ class StudentController extends Controller
                 ->with('error', 'Student has an allocation and cannot be deleted.');
         }
 
+        // Delete the user (which will cascade delete the student due to foreign key constraints)
         $student->user->delete();
 
         return redirect()->route('admin.students.index')

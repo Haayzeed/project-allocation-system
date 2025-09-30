@@ -21,6 +21,10 @@ class Project extends Model
         'status',
     ];
 
+    protected $casts = [
+        'created_at' => 'datetime:Y-m-d H:i:s',
+        'updated_at' => 'datetime:Y-m-d H:i:s',
+    ];
     /**
      * Get the student that owns the project.
      */

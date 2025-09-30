@@ -7,7 +7,6 @@ use App\Http\Controllers\Admin\ProjectController;
 use App\Http\Controllers\Admin\StudentController;
 use App\Http\Controllers\Admin\SupervisorController;
 use Illuminate\Support\Facades\Route;
-use Inertia\Inertia;
 
 // Admin routes with authentication and admin role middleware
 Route::middleware(['auth', 'verified'])->group(function () {

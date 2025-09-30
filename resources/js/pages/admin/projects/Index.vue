@@ -26,10 +26,6 @@ interface Props {
       id: number;
       name: string;
     };
-    specializations: Array<{
-      id: number;
-      name: string;
-    }>;
     allocation?: {
       id: number;
       status: string;
@@ -63,9 +59,11 @@ const breadcrumbs = [
 // Alert states
 const showSuccessAlert = ref(!!props.flash?.success);
 const showErrorAlert = ref(!!props.flash?.error);
+const showWarningAlert = ref(!!props.flash?.warning);
 const showInfoAlert = ref(!!props.flash?.info);
 const successMessage = ref(props.flash?.success || '');
 const errorMessage = ref(props.flash?.error || '');
+const warningMessage = ref(props.flash?.warning || '');
 const infoMessage = ref(props.flash?.info || '');
 
 // Loading states
@@ -87,6 +85,13 @@ watch(() => props.flash?.error, (newError) => {
   }
 });
 
+watch(() => props.flash?.warning, (newWarning) => {
+  if (newWarning) {
+    warningMessage.value = newWarning;
+    showWarningAlert.value = true;
+  }
+});
+
 watch(() => props.flash?.info, (newInfo) => {
   if (newInfo) {
     infoMessage.value = newInfo;
@@ -100,6 +105,10 @@ function dismissSuccessAlert() {
 
 function dismissErrorAlert() {
   showErrorAlert.value = false;
+}
+
+function dismissWarningAlert() {
+  showWarningAlert.value = false;
 }
 
 function dismissInfoAlert() {
@@ -116,6 +125,7 @@ function allocateSupervisor(project: any) {
   // Clear previous alerts
   showSuccessAlert.value = false;
   showErrorAlert.value = false;
+  showWarningAlert.value = false;
   showInfoAlert.value = false;
 
   router.post(route('admin.projects.allocate', { project: project.id }), {}, {
@@ -148,6 +158,7 @@ function bulkAllocate() {
   // Clear previous alerts
   showSuccessAlert.value = false;
   showErrorAlert.value = false;
+  showWarningAlert.value = false;
   showInfoAlert.value = false;
 
   router.post(route('admin.projects.bulk-allocate'), {}, {
@@ -242,6 +253,14 @@ function formatMatchScore(score?: number): string {
         @dismiss="dismissErrorAlert"
       />
 
+      <!-- Warning Alert -->
+      <Alert
+        v-if="showWarningAlert"
+        type="warning"
+        :message="warningMessage"
+        @dismiss="dismissWarningAlert"
+      />
+
       <!-- Info Alert -->
       <Alert
         v-if="showInfoAlert"
@@ -259,7 +278,6 @@ function formatMatchScore(score?: number): string {
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Project</th>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Student</th>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Department</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Specializations</th>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Supervisor</th>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Match Score</th>
@@ -286,18 +304,6 @@ function formatMatchScore(score?: number): string {
                 <td class="px-6 py-4 whitespace-nowrap">
                   <div class="text-sm text-gray-900 dark:text-white">{{ project.department.name }}</div>
                 </td>
-                <td class="px-6 py-4">
-                  <div class="flex flex-wrap gap-1">
-                    <span 
-                      v-for="spec in project.specializations" 
-                      :key="spec.id" 
-                      class="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800"
-                    >
-                      {{ spec.name }}
-                    </span>
-                    <span v-if="project.specializations.length === 0" class="text-xs text-gray-500">No specializations</span>
-                  </div>
-                </td>
                 <td class="px-6 py-4 whitespace-nowrap">
                   <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full" :class="getStatusBadgeColor(project.allocation_status)">
                     {{ project.allocation_status }}
@@ -320,10 +326,13 @@ function formatMatchScore(score?: number): string {
                   <div class="flex gap-2">
                     <Link 
                       :href="route('admin.projects.show', { project: project.id })"
-                      class="text-blue-600 hover:text-blue-800 text-sm"
+                      class="text-blue-600 hover:text-blue-800 p-1 rounded"
                       title="View Details"
                     >
-                      View
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                      </svg>
                     </Link>
                     <button
                       v-if="project.allocation_status === 'Not Allocated'"

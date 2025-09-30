@@ -178,13 +178,13 @@ function submitForm() {
   });
 }
 
-function deleteSupervisor(supervisorId: number) {
+function deleteSupervisor(supervisor: any) {
   if (confirm('Are you sure you want to delete this supervisor? This action cannot be undone.')) {
     // Clear previous alerts
     showSuccessAlert.value = false;
     showErrorAlert.value = false;
     
-    router.delete(route('admin.supervisors.destroy', { supervisor: supervisorId }), {
+    router.delete(route('admin.supervisors.destroy', { supervisor: supervisor.id }), {
       onSuccess: (page: any) => {
         // Check if there's an error in flash messages (like validation errors)
         if (page.props.flash?.error) {
@@ -484,7 +484,7 @@ function onSpecializationsChange(selectedSpecs: any[]) {
                         <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487a2.1 2.1 0 1 1 2.97 2.97L7.5 19.789l-4 1 1-4 12.362-12.302ZM19 7l-2-2" />
                       </svg>
                     </button>
-                    <button class="text-red-600 hover:text-red-800" title="Delete" @click="deleteSupervisor(supervisor.id)">
+                    <button class="text-red-600 hover:text-red-800" title="Delete" @click="deleteSupervisor(supervisor)">
                       <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
                       </svg>

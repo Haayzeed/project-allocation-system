@@ -53,7 +53,9 @@ abstract class LLMService
     protected function parseAllocationResponse(string $response): array
     {
         try {
-            $data = json_decode($response, true);
+            $cleanedResponse = $this->extractJsonFromResponse($response);
+            
+            $data = json_decode($cleanedResponse, true);
             
             if (json_last_error() !== JSON_ERROR_NONE) {
                 throw new \Exception('Invalid JSON response from LLM');
@@ -68,6 +70,27 @@ abstract class LLMService
             
             return [];
         }
+    }
+
+    /**
+     * Extract JSON from markdown code blocks or plain text.
+     */
+    private function extractJsonFromResponse(string $response): string
+    {
+        // Remove markdown code blocks if present
+        $response = preg_replace('/```json\s*/', '', $response);
+        $response = preg_replace('/```\s*$/', '', $response);
+        $response = preg_replace('/```\s*/', '', $response);
+        
+        // Trim whitespace
+        $response = trim($response);
+        
+        // If the response still contains markdown, try to extract JSON object
+        if (preg_match('/\{[\s\S]*\}/', $response, $matches)) {
+            $response = $matches[0];
+        }
+        
+        return $response;
     }
 
     /**
