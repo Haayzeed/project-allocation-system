@@ -8,6 +8,7 @@ use App\Models\Specialization;
 use App\Models\Supervisor;
 use App\Models\User;
 use App\Enums\RoleEnum;
+use App\Notifications\SupervisorLoginDetails;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
@@ -45,11 +46,14 @@ class SupervisorController extends Controller
             'bio' => 'nullable|string|max:1000',
         ]);
 
-        DB::transaction(function () use ($validated) {
+        $generatedPassword = str()->random(16);
+        $loginUrl = route('login');
+        
+        DB::transaction(function () use ($validated, $generatedPassword, $loginUrl) {
             $user = User::create([
                 'name' => $validated['name'],
                 'email' => $validated['email'],
-                'password' => Hash::make(str()->random(16)),
+                'password' => Hash::make($generatedPassword),
                 'role' => RoleEnum::SUPERVISOR->value,
             ]);
 
@@ -62,6 +66,9 @@ class SupervisorController extends Controller
             ]);
 
             $supervisor->specializations()->attach($validated['specialization_ids']);
+
+            // Send login details notification
+            $user->notify(new SupervisorLoginDetails($generatedPassword, $loginUrl));
         });
 
         return redirect()->route('admin.supervisors.index')

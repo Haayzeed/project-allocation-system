@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Admin\AdminController;
 use App\Http\Controllers\Admin\ConfigController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\DepartmentController;
@@ -40,4 +41,15 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/admin/configs', [ConfigController::class, 'store'])->name('admin.configs.store');
     Route::put('/admin/configs/{config}', [ConfigController::class, 'update'])->name('admin.configs.update');
     Route::delete('/admin/configs/{config}', [ConfigController::class, 'destroy'])->name('admin.configs.destroy');
+
+    // Admin Management
+    Route::get('/admin/admins', [AdminController::class, 'index'])->name('admin.admins.index');
+    Route::get('/admin/admins/create', [AdminController::class, 'create'])->name('admin.admins.create');
+    Route::post('/admin/admins', [AdminController::class, 'store'])->name('admin.admins.store');
+    Route::get('/admin/admins/{admin}', [AdminController::class, 'show'])->name('admin.admins.show');
+    Route::get('/admin/admins/{admin}/edit', [AdminController::class, 'edit'])->name('admin.admins.edit');
+    Route::put('/admin/admins/{admin}', [AdminController::class, 'update'])->name('admin.admins.update');
+    Route::delete('/admin/admins/{admin}', [AdminController::class, 'destroy'])->name('admin.admins.destroy');
+    Route::post('/admin/admins/{admin}/ban', [AdminController::class, 'ban'])->name('admin.admins.ban');
+    Route::post('/admin/admins/{admin}/unban', [AdminController::class, 'unban'])->name('admin.admins.unban');
 });

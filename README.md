@@ -1,6 +1,23 @@
-# LLM Integration for Project Allocation System
+# Project Allocation System
 
 This document describes the AI-powered allocation system that uses Large Language Models (LLMs) to intelligently match students with supervisors based on project specializations, supervisor expertise, and capacity constraints.
+
+## 📧 Email Testing with Mailpit
+
+The system includes Mailpit for email testing in development. This captures all outgoing emails without actually sending them.
+
+### **Setup**
+1. **Start Services**: `./vendor/bin/sail up -d`
+2. **Access Mailpit**: Visit `http://localhost:8025` to view captured emails
+3. **SMTP Port**: Emails are sent to `localhost:1025`
+
+### **Features**
+- **Modern Interface**: Clean, responsive web interface for viewing emails
+- **Email Capture**: All emails are captured and displayed in the web interface
+- **No Real Sending**: Perfect for development and testing
+- **Student Notifications**: Login credentials are sent when students are created
+- **Professional Templates**: Clean, branded email templates
+- **Advanced Features**: Email search, filtering, and detailed headers
 
 ## 🚀 Features
 

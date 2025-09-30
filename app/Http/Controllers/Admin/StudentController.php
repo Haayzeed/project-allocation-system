@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Department;
 use App\Models\Student;
 use App\Models\User;
+use App\Notifications\StudentLoginDetails;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -44,11 +45,14 @@ class StudentController extends Controller
             'session' => 'required|string|max:20',
         ]);
 
-        DB::transaction(function () use ($validated) {
+        $generatedPassword = str()->random(16);
+        $loginUrl = route('login');
+        
+        DB::transaction(function () use ($validated, $generatedPassword, $loginUrl) {
             $user = User::create([
                 'name' => $validated['name'],
                 'email' => $validated['email'],
-                'password' => Hash::make(str()->random(16)),
+                'password' => Hash::make($generatedPassword),
                 'role' => RoleEnum::STUDENT->value,
             ]);
 
@@ -59,6 +63,9 @@ class StudentController extends Controller
                 'level' => $validated['level'],
                 'session' => $validated['session'],
             ]);
+
+            // Send login details notification
+            $user->notify(new StudentLoginDetails($generatedPassword, $loginUrl));
         });
 
         return redirect()->route('admin.students.index')
@@ -131,7 +138,6 @@ class StudentController extends Controller
                 ->with('error', 'Student has an allocation and cannot be deleted.');
         }
 
-        // Delete the user (which will cascade delete the student due to foreign key constraints)
         $student->user->delete();
 
         return redirect()->route('admin.students.index')
